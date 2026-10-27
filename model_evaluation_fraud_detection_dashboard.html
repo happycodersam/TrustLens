@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Model Evaluation & Real-Time Analytics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom scrollbar for feature sliders container */
+        .slider-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .slider-scroll::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        .slider-scroll::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        .slider-scroll::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <!-- Navigation Header -->
+    <nav class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-600/30">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold leading-tight flex items-center gap-2">
+                    FraudLens AI Analytics
+                    <span class="text-xs font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Full 28-PCA Feature Engine</span>
+                </h1>
+                <p class="text-xs text-slate-400">Real-Time Flask API & SQLite DB Integration</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div id="backend-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span id="backend-status-dot" class="w-2 h-2 rounded-full bg-amber-400 mr-2 animate-ping"></span>
+                <span id="backend-status-text">Connecting to Backend...</span>
+            </div>
+            <button onclick="fetchMetrics(); fetchHistory();" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md border border-slate-700 transition flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Data
+            </button>
+        </div>
+    </nav>
+
+    <main class="p-6 max-w-[1700px] mx-auto space-y-6">
+
+        <!-- Metrics Overview Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">Accuracy</p>
+                <p id="metric-accuracy" class="text-2xl font-bold text-indigo-400 mt-1">--</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">Precision</p>
+                <p id="metric-precision" class="text-2xl font-bold text-emerald-400 mt-1">--</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">Recall (Sensitivity)</p>
+                <p id="metric-recall" class="text-2xl font-bold text-sky-400 mt-1">--</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">F1-Score</p>
+                <p id="metric-f1" class="text-2xl font-bold text-purple-400 mt-1">--</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">ROC-AUC Score</p>
+                <p id="metric-roc-auc" class="text-2xl font-bold text-amber-400 mt-1">--</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-400">Evaluated Samples</p>
+                <p id="metric-samples" class="text-2xl font-bold text-slate-200 mt-1">--</p>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left Panel: All 28 Features + Model Selection + Controls -->
+            <div class="lg:col-span-5 bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 flex flex-col space-y-4">
+                
+                <div class="border-b border-slate-700/60 pb-3 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-md font-semibold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i> Model & Feature Simulator
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Configure model architecture and adjust feature sliders ($V_1$ to $V_{28}$).</p>
+                    </div>
+                    <button onclick="randomizeAllFeatures()" class="text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 font-medium">
+                        <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Randomize All
+                    </button>
+                </div>
+
+                <!-- Model Selection Menu -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-slate-300 flex items-center justify-between">
+                        <span>Select Classifier Model</span>
+                        <span class="text-[10px] text-slate-400">Evaluated on Backend API</span>
+                    </label>
+                    <select id="model-select" onchange="onModelChange()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="rf" selected>Random Forest Classifier (Ensemble Baseline)</option>
+                        <option value="xgb">XGBoost Gradient Boosting</option>
+                        <option value="lr">Logistic Regression (Linear Benchmark)</option>
+                        <option value="dt">Decision Tree Classifier</option>
+                    </select>
+                </div>
+
+                <!-- Scrollable Features Panel (Amount, Time, V1 to V28) -->
+                <div class="slider-scroll space-y-3 overflow-y-auto max-h-[460px] pr-2 text-xs border-y border-slate-700/40 py-3">
+                    
+                    <!-- Metadata Features -->
+                    <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
+                        <p class="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">Transaction Metadata</p>
+                        
+                        <!-- Amount -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 mb-1">
+                                <span>Amount ($)</span>
+                                <span id="val-Amount" class="font-mono text-indigo-300">$150.00</span>
+                            </div>
+                            <input type="range" id="param-Amount" min="0" max="5000" step="1" value="150" oninput="updateLabel('Amount', '$' + parseFloat(this.value).toFixed(2))" class="w-full accent-indigo-500 bg-slate-700 h-1.5 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- Time -->
+                        <div>
+                            <div class="flex justify-between text-slate-300 mb-1">
+                                <span>Time (seconds elapsed)</span>
+                                <span id="val-Time" class="font-mono text-indigo-300">42000s</span>
+                            </div>
+                            <input type="range" id="param-Time" min="0" max="172800" step="10" value="42000" oninput="updateLabel('Time', this.value + 's')" class="w-full accent-indigo-500 bg-slate-700 h-1.5 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- 28 PCA Features (V1 to V28) -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <p class="text-[11px] font-semibold text-sky-400 uppercase tracking-wider">PCA Transformed Features ($V_1$ to $V_{28}$)</p>
+                            <button onclick="resetFeaturesToZero()" class="text-[10px] text-slate-400 hover:text-slate-200 underline">Reset to 0.0</button>
+                        </div>
+
+                        <div id="v-sliders-container" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <!-- Generated dynamically in JavaScript for clean code -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Submit Prediction Button -->
+                <button onclick="submitPrediction()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2 text-sm mt-auto">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i> Execute Model Inference
+                </button>
+            </div>
+
+            <!-- Middle/Right Panel: Prediction Output, Confusion Matrix, and Charts -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- Real-time Prediction Output Box -->
+                <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 space-y-4">
+                    <div class="border-b border-slate-700/60 pb-3 flex justify-between items-center">
+                        <h2 class="text-md font-semibold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> Inference Result
+                        </h2>
+                        <span id="res-badge" class="px-2.5 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">Awaiting Simulation</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-700/50">
+                            <p class="text-xs text-slate-400">Predicted Fraud Probability</p>
+                            <p id="res-prob" class="text-3xl font-extrabold text-slate-100 mt-1">0.0%</p>
+                            <div class="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
+                                <div id="res-bar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50 space-y-1.5 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Classification Status:</span>
+                                <span id="res-status" class="font-semibold text-slate-200">--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Active Model:</span>
+                                <span id="res-model-name" class="font-semibold text-slate-200">Random Forest</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Database Record:</span>
+                                <span id="res-db-status" class="font-semibold text-emerald-400">Auto-logged on run</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confusion Matrix & Performance Charts Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- Confusion Matrix Card -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="grid" class="w-3.5 h-3.5 text-sky-400"></i> Confusion Matrix
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                            <div class="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                                <p class="text-[9px] uppercase font-bold text-emerald-400">True Neg (TN)</p>
+                                <p id="cm-tn" class="text-lg font-bold text-slate-100 mt-0.5">--</p>
+                            </div>
+                            <div class="p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+                                <p class="text-[9px] uppercase font-bold text-rose-400">False Pos (FP)</p>
+                                <p id="cm-fp" class="text-lg font-bold text-slate-100 mt-0.5">--</p>
+                            </div>
+                            <div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                                <p class="text-[9px] uppercase font-bold text-amber-400">False Neg (FN)</p>
+                                <p id="cm-fn" class="text-lg font-bold text-slate-100 mt-0.5">--</p>
+                            </div>
+                            <div class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                                <p class="text-[9px] uppercase font-bold text-indigo-400">True Pos (TP)</p>
+                                <p id="cm-tp" class="text-lg font-bold text-slate-100 mt-0.5">--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ROC Chart Card -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="line-chart" class="w-3.5 h-3.5 text-emerald-400"></i> ROC Curve
+                        </h3>
+                        <div class="h-36">
+                            <canvas id="rocChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Precision Recall Chart Card -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="git-commit" class="w-3.5 h-3.5 text-purple-400"></i> PR Curve
+                        </h3>
+                        <div class="h-36">
+                            <canvas id="prChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Database Transaction Logs -->
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700/60 pb-3">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <i data-lucide="database" class="w-4 h-4 text-amber-400"></i> Live Database History (`fraud_analytics.db`)
+                </h3>
+                <span class="text-xs text-slate-400">Fetches real SQLite records logged via Flask backend</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-900/60 text-slate-400 border-b border-slate-700/60">
+                        <tr>
+                            <th class="p-2.5">Record ID</th>
+                            <th class="p-2.5">Timestamp</th>
+                            <th class="p-2.5">Amount ($)</th>
+                            <th class="p-2.5">Fraud Probability</th>
+                            <th class="p-2.5">Model Output</th>
+                            <th class="p-2.5">DB Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="db-history-body" class="divide-y divide-slate-800/60">
+                        <tr>
+                            <td colspan="6" class="p-4 text-center text-slate-500 italic">Loading transaction logs from database...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let rocChart, prChart;
+
+        // On Page Load Initialize
+        window.onload = function() {
+            lucide.createIcons();
+            generateVSliders();
+            initCharts();
+            fetchMetrics();
+            fetchHistory();
+        };
+
+        // Dynamically build sliders for V1 to V28
+        function generateVSliders() {
+            const container = document.getElementById('v-sliders-container');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= 28; i++) {
+                const key = `V${i}`;
+                const sliderHtml = `
+                    <div class="bg-slate-900/40 p-2 rounded border border-slate-800/80">
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span class="font-semibold text-slate-300">${key}</span>
+                            <span id="val-${key}" class="font-mono text-slate-200">0.00</span>
+                        </div>
+                        <input type="range" id="param-${key}" min="-10" max="5" step="0.1" value="0" 
+                            oninput="updateLabel('${key}', parseFloat(this.value).toFixed(2))" 
+                            class="w-full accent-indigo-500 bg-slate-700 h-1.5 rounded-lg cursor-pointer">
+                    </div>
+                `;
+                container.innerHTML += sliderHtml;
+            }
+        }
+
+        function updateLabel(id, val) {
+            document.getElementById(`val-${id}`).innerText = val;
+        }
+
+        // Randomize all 28 PCA features, Amount, and Time
+        function randomizeAllFeatures() {
+            // Amount between 10 and 3500
+            const randomAmount = Math.floor(Math.random() * 3500) + 10;
+            document.getElementById('param-Amount').value = randomAmount;
+            updateLabel('Amount', '$' + randomAmount.toFixed(2));
+
+            // Time between 0 and 170000
+            const randomTime = Math.floor(Math.random() * 170000);
+            document.getElementById('param-Time').value = randomTime;
+            updateLabel('Time', randomTime + 's');
+
+            // V1 to V28 sliders
+            for (let i = 1; i <= 28; i++) {
+                const key = `V${i}`;
+                // Random value biased to normal distributions, with occasional negative spikes
+                const isSpike = Math.random() < 0.15;
+                const randomVal = isSpike ? (Math.random() * -8).toFixed(2) : (Math.random() * 4 - 2).toFixed(2);
+                
+                const inputEl = document.getElementById(`param-${key}`);
+                if (inputEl) {
+                    inputEl.value = randomVal;
+                    updateLabel(key, randomVal);
+                }
+            }
+        }
+
+        function resetFeaturesToZero() {
+            for (let i = 1; i <= 28; i++) {
+                const key = `V${i}`;
+                const inputEl = document.getElementById(`param-${key}`);
+                if (inputEl) {
+                    inputEl.value = 0;
+                    updateLabel(key, "0.00");
+                }
+            }
+        }
+
+        function onModelChange() {
+            const selectEl = document.getElementById('model-select');
+            const selectedName = selectEl.options[selectEl.selectedIndex].text;
+            document.getElementById('res-model-name').innerText = selectedName;
+        }
+
+        // Fetch Live Evaluation Metrics from Flask API
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                if (!res.ok) throw new Error("API Offline");
+                const data = await res.json();
+
+                // Update Status Indicator
+                document.getElementById('backend-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                document.getElementById('backend-status-dot').className = "w-2 h-2 rounded-full bg-emerald-400 mr-2";
+                document.getElementById('backend-status-text').innerText = "Backend API Connected";
+
+                // Populate Summary Cards
+                document.getElementById('metric-accuracy').innerText = (data.accuracy * 100).toFixed(1) + '%';
+                document.getElementById('metric-precision').innerText = (data.precision * 100).toFixed(1) + '%';
+                document.getElementById('metric-recall').innerText = (data.recall * 100).toFixed(1) + '%';
+                document.getElementById('metric-f1').innerText = (data.f1_score * 100).toFixed(1) + '%';
+                document.getElementById('metric-roc-auc').innerText = data.roc_auc.toFixed(3);
+                document.getElementById('metric-samples').innerText = data.total_test_samples.toLocaleString();
+
+                // Confusion Matrix
+                document.getElementById('cm-tn').innerText = data.confusion_matrix.tn.toLocaleString();
+                document.getElementById('cm-fp').innerText = data.confusion_matrix.fp.toLocaleString();
+                document.getElementById('cm-fn').innerText = data.confusion_matrix.fn.toLocaleString();
+                document.getElementById('cm-tp').innerText = data.confusion_matrix.tp.toLocaleString();
+
+                // Update Charts
+                if (data.roc_curve) {
+                    rocChart.data.labels = data.roc_curve.map(p => p.fpr);
+                    rocChart.data.datasets[0].data = data.roc_curve.map(p => p.tpr);
+                    rocChart.update();
+                }
+
+                if (data.pr_curve) {
+                    prChart.data.labels = data.pr_curve.map(p => p.recall);
+                    prChart.data.datasets[0].data = data.pr_curve.map(p => p.precision);
+                    prChart.update();
+                }
+
+            } catch (err) {
+                console.warn("Backend server not running at /api/metrics:", err);
+                document.getElementById('backend-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20";
+                document.getElementById('backend-status-dot').className = "w-2 h-2 rounded-full bg-rose-400 mr-2";
+                document.getElementById('backend-status-text').innerText = "Backend Offline (Run app.py)";
+            }
+        }
+
+        // Run Real Prediction through Python Backend
+        async function submitPrediction() {
+            // Collect all 28 feature values + Amount + Time
+            const payload = {
+                amount: parseFloat(document.getElementById('param-Amount').value) || 0,
+                time: parseFloat(document.getElementById('param-Time').value) || 0,
+                model_type: document.getElementById('model-select').value
+            };
+
+            for (let i = 1; i <= 28; i++) {
+                const key = `V${i}`;
+                const inputEl = document.getElementById(`param-${key}`);
+                payload[key] = inputEl ? parseFloat(inputEl.value) : 0;
+            }
+
+            try {
+                const res = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("Inference call failed");
+                const result = await res.json();
+
+                // UI Updates based on API output
+                const probBar = document.getElementById('res-bar');
+                const probText = document.getElementById('res-prob');
+                const badge = document.getElementById('res-badge');
+                const statusText = document.getElementById('res-status');
+
+                probText.innerText = `${result.fraud_probability.toFixed(1)}%`;
+                probBar.style.width = `${result.fraud_probability}%`;
+
+                if (result.is_fraud) {
+                    probBar.className = "bg-rose-500 h-full transition-all duration-500";
+                    badge.className = "px-2.5 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                    badge.innerText = "FRAUD DETECTED";
+                    statusText.innerText = "High Risk Fraud Signal";
+                    statusText.className = "font-semibold text-rose-400";
+                } else {
+                    probBar.className = "bg-emerald-500 h-full transition-all duration-500";
+                    badge.className = "px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    badge.innerText = "LEGITIMATE";
+                    statusText.innerText = "Low Risk Approved";
+                    statusText.className = "font-semibold text-emerald-400";
+                }
+
+                // Refresh Database Logs Table
+                fetchHistory();
+
+            } catch (err) {
+                alert("Could not connect to Flask backend. Please ensure app.py is running on port 5000.");
+            }
+        }
+
+        // Fetch History from SQLite Database
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) return;
+                const history = await res.json();
+
+                const tbody = document.getElementById('db-history-body');
+                tbody.innerHTML = '';
+
+                if (history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500 italic">No prediction records found in database.</td></tr>';
+                    return;
+                }
+
+                history.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/40 transition";
+                    const isFraud = row.prediction === 'Fraud';
+
+                    tr.innerHTML = `
+                        <td class="p-2.5 font-mono text-slate-400">#${row.id}</td>
+                        <td class="p-2.5 font-mono text-slate-400">${row.timestamp}</td>
+                        <td class="p-2.5 font-mono text-slate-200">$${parseFloat(row.amount).toFixed(2)}</td>
+                        <td class="p-2.5 font-mono ${isFraud ? 'text-rose-400 font-bold' : 'text-emerald-400'}">${row.fraud_probability}%</td>
+                        <td class="p-2.5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isFraud ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+                                ${row.prediction}
+                            </span>
+                        </td>
+                        <td class="p-2.5 font-mono text-[10px] text-slate-400">${row.status}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                console.warn("Could not load DB logs:", err);
+            }
+        }
+
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.borderColor = '#334155';
+
+            const ctxRoc = document.getElementById('rocChart').getContext('2d');
+            rocChart = new Chart(ctxRoc, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ROC Curve',
+                        data: [],
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'FPR', font: { size: 9 } } },
+                        y: { title: { display: true, text: 'TPR', font: { size: 9 } } }
+                    }
+                }
+            });
+
+            const ctxPr = document.getElementById('prChart').getContext('2d');
+            prChart = new Chart(ctxPr, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'PR Curve',
+                        data: [],
+                        borderColor: '#a855f7',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Recall', font: { size: 9 } } },
+                        y: { title: { display: true, text: 'Precision', font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

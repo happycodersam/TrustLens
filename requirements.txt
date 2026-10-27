@@ -1,0 +1,24 @@
+# FraudLens AI — Python dependencies
+# Install with: python -m pip install -r requirements.txt
+
+# Dataset download (notebook)
+kagglehub
+
+# Data processing
+pandas
+numpy
+
+# Machine learning and evaluation
+scikit-learn
+
+# Notebook visualizations
+matplotlib
+seaborn
+
+# Notebook environment
+jupyter
+ipykernel
+
+# Flask dashboard API
+Flask
+Flask-Cors
